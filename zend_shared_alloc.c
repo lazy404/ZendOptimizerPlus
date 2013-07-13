@@ -226,6 +226,7 @@ int zend_shared_alloc_startup(size_t requested_size)
 		return ALLOC_FAILURE;;
 	}
 
+    //ZSMMG - > smm_shared_globals
 	copy_shared_segments(tmp_shared_segments, ZSMMG(shared_segments)[0], ZSMMG(shared_segments_count), S_H(segment_type_size)());
 
 	*p_tmp_shared_globals = tmp_shared_globals;

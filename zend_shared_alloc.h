@@ -68,6 +68,15 @@
 #define FAILED_REATTACHED       2
 #define SUCCESSFULLY_REATTACHED 4
 #define ALLOC_FAIL_MAPPING      8
+#define FILE_REATTACHED      16
+
+typedef struct _magick_shared_globals {
+    void * accel_shared_globals;
+    void * smm_shared_globals;
+    int magick;
+} magick_shared_globals;
+
+#define MMAP_ADDR (void *) 0x00100000000
 
 typedef struct _zend_shared_segment {
     size_t  size;

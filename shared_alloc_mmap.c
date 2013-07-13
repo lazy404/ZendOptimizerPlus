@@ -29,6 +29,17 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
+#define _BSD_SOURCE
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+
+#ifndef MAP_NOSYNC
+#define MAP_NOSYNC 0
+#endif
+
 #if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
 # define MAP_ANONYMOUS MAP_ANON
 #endif
@@ -36,26 +47,50 @@
 static int create_segments(size_t requested_size, zend_shared_segment ***shared_segments_p, int *shared_segments_count, char **error_in)
 {
 	zend_shared_segment *shared_segment;
+    char file[] = "/apc/dupa";
+    int fd=-1;
+    int ret=ALLOC_FAILURE;
+    *shared_segments_count = 1;
+    *shared_segments_p = (zend_shared_segment **) calloc(1, sizeof(zend_shared_segment) + sizeof(void *));
+    if (!*shared_segments_p) {
+            *error_in = "calloc";
+            return ALLOC_FAILURE;
+    }
+    shared_segment = (zend_shared_segment *)((char *)(*shared_segments_p) + sizeof(void *));
+    (*shared_segments_p)[0] = shared_segment;
 
-	*shared_segments_count = 1;
-	*shared_segments_p = (zend_shared_segment **) calloc(1, sizeof(zend_shared_segment) + sizeof(void *));
-	if (!*shared_segments_p) {
-		*error_in = "calloc";
-		return ALLOC_FAILURE;
-	}
-	shared_segment = (zend_shared_segment *)((char *)(*shared_segments_p) + sizeof(void *));
-	(*shared_segments_p)[0] = shared_segment;
+    fd = open(file , O_RDWR, S_IRUSR | S_IWUSR);
+    if(fd != -1) {
+        if(ftruncate(fd, requested_size) < 0) {
+            close(fd);
+            unlink(file);
+            return ret;
+         }
+     ret=SUCCESSFULLY_REATTACHED;
+    }else{
+        fd = open(file , O_RDWR|O_CREAT, S_IRUSR | S_IWUSR);
+        if(fd != -1) {
+            if(ftruncate(fd, requested_size) < 0) {
+                close(fd);
+                unlink(file);
+                return ret;
+            }
+        ret=ALLOC_SUCCESS;
+        }
+    }
+    
+    shared_segment->p = (void *) mmap( MMAP_ADDR, requested_size+sizeof(magick_shared_globals), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_NOSYNC|MAP_FIXED, fd, 0);
 
-	shared_segment->p = mmap(0, requested_size, PROT_READ | PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
-	if (shared_segment->p == MAP_FAILED) {
-		*error_in = "mmap";
-		return ALLOC_FAILURE;
-	}
+    if (shared_segment->p == MAP_FAILED) {
+            *error_in = "mmap";
+            return ALLOC_FAILURE;
+    }
 
-	shared_segment->pos = 0;
+	shared_segment->pos = sizeof(magick_shared_globals);
 	shared_segment->size = requested_size;
+    shared_globals_helper= shared_segment->p;
 
-	return ALLOC_SUCCESS;
+	return ret;
 }
 
 static int detach_segment(zend_shared_segment *shared_segment)

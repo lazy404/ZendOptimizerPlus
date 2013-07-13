@@ -95,6 +95,8 @@ int accel_globals_id;
 /* Points to the structure shared across all PHP processes */
 zend_accel_shared_globals *accel_shared_globals = NULL;
 
+magick_shared_globals *shared_globals_helper = NULL;
+
 /* true globals, no need for thread safety */
 zend_bool accel_startup_ok = 0;
 static char *zps_failure_reason = NULL;
@@ -2483,6 +2485,7 @@ static int accel_startup(zend_extension *extension)
 {
 	zend_function *func;
 	zend_ini_entry *ini_entry;
+    int shm_init_done=0;
 	TSRMLS_FETCH();
 
 #ifdef ZTS
@@ -2522,11 +2525,20 @@ static int accel_startup(zend_extension *extension)
 	switch (zend_shared_alloc_startup(ZCG(accel_directives).memory_consumption)) {
 		case ALLOC_SUCCESS:
 			zend_accel_init_shm(TSRMLS_C);
+
+            shared_globals_helper->accel_shared_globals=(void *) accel_shared_globals;
+            smm_shared_globals->accel_shared_globals=(void *) smm_shared_globals;
 			break;
 		case ALLOC_FAILURE:
 			accel_startup_ok = 0;
 			zend_accel_error(ACCEL_LOG_FATAL, "Failure to initialize shared memory structures - probably not enough shared memory.");
 			return SUCCESS;
+        case FILE_REATTACHED:
+            accel_shared_globals = shared_globals_helper->accel_shared_globals;
+            smm_shared_globals = shared_globals_helper->smm_shared_globals
+            shm_init_done=1;
+            return break;
+            
 		case SUCCESSFULLY_REATTACHED:
 			accel_shared_globals = (zend_accel_shared_globals *) ZSMMG(app_shared_globals);
 #if ZEND_EXTENSION_API_NO > PHP_5_3_X_API_NO
