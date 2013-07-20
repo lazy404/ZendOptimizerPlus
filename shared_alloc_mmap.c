@@ -66,7 +66,7 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
             unlink(file);
             return ret;
          }
-     ret=SUCCESSFULLY_REATTACHED;
+     ret=FILE_REATTACHED;
     }else{
         fd = open(file , O_RDWR|O_CREAT, S_IRUSR | S_IWUSR);
         if(fd != -1) {
@@ -88,7 +88,7 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
 
 	shared_segment->pos = sizeof(magick_shared_globals);
 	shared_segment->size = requested_size;
-    shared_globals_helper= shared_segment->p;
+    shared_globals_helper = shared_segment->p;
 
 	return ret;
 }
