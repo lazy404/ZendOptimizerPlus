@@ -2526,8 +2526,8 @@ static int accel_startup(zend_extension *extension)
 		case ALLOC_SUCCESS:
 			zend_accel_init_shm(TSRMLS_C);
 
-            shared_globals_helper->accel_shared_globals=(void *) accel_shared_globals;
-            smm_shared_globals->accel_shared_globals=(void *) smm_shared_globals;
+            shared_globals_helper->accel_shared_globals = (void *) accel_shared_globals;
+            shared_globals_helper->smm_shared_globals = (void *) smm_shared_globals;
 			break;
 		case ALLOC_FAILURE:
 			accel_startup_ok = 0;
@@ -2535,9 +2535,9 @@ static int accel_startup(zend_extension *extension)
 			return SUCCESS;
         case FILE_REATTACHED:
             accel_shared_globals = shared_globals_helper->accel_shared_globals;
-            smm_shared_globals = shared_globals_helper->smm_shared_globals
+            smm_shared_globals = shared_globals_helper->smm_shared_globals;
             shm_init_done=1;
-            return break;
+            break;
             
 		case SUCCESSFULLY_REATTACHED:
 			accel_shared_globals = (zend_accel_shared_globals *) ZSMMG(app_shared_globals);
