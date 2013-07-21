@@ -2106,12 +2106,10 @@ static void accel_activate(void)
 #if (ZEND_EXTENSION_API_NO > PHP_5_3_X_API_NO) && !defined(ZTS)
 				accel_interned_strings_restore_state(TSRMLS_C);
 #endif
-                if(!reinit) {
 				zend_shared_alloc_restore_state();
 				ZCSG(accelerator_enabled) = ZCSG(cache_status_before_restart);
 				ZCSG(last_restart_time) = ZCG(request_time);
 				accel_restart_leave(TSRMLS_C);
-                }
 			}
 		}
 		zend_shared_alloc_unlock(TSRMLS_C);
@@ -2633,11 +2631,9 @@ static int accel_startup(zend_extension *extension)
 		ini_entry->on_modify = accel_include_path_on_modify;
 	}
 
-    if(!reinit) {
-	    zend_shared_alloc_lock(TSRMLS_C);
-	    zend_shared_alloc_save_state();
-	    zend_shared_alloc_unlock(TSRMLS_C);
-    }
+	zend_shared_alloc_lock(TSRMLS_C);
+	zend_shared_alloc_save_state();
+	zend_shared_alloc_unlock(TSRMLS_C);
 
 	SHM_PROTECT();
 
