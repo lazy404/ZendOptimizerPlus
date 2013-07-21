@@ -101,6 +101,7 @@ magick_shared_globals *shared_globals_helper = NULL;
 zend_bool accel_startup_ok = 0;
 static char *zps_failure_reason = NULL;
 char *zps_api_failure_reason = NULL;
+int reinit=0;
 
 static zend_op_array *(*accelerator_orig_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
 static int (*accelerator_orig_zend_stream_open_function)(const char *filename, zend_file_handle *handle  TSRMLS_DC);
@@ -2105,11 +2106,12 @@ static void accel_activate(void)
 #if (ZEND_EXTENSION_API_NO > PHP_5_3_X_API_NO) && !defined(ZTS)
 				accel_interned_strings_restore_state(TSRMLS_C);
 #endif
-
+                if(!reinit) {
 				zend_shared_alloc_restore_state();
 				ZCSG(accelerator_enabled) = ZCSG(cache_status_before_restart);
 				ZCSG(last_restart_time) = ZCG(request_time);
 				accel_restart_leave(TSRMLS_C);
+                }
 			}
 		}
 		zend_shared_alloc_unlock(TSRMLS_C);
@@ -2537,8 +2539,8 @@ static int accel_startup(zend_extension *extension)
             accel_shared_globals = shared_globals_helper->accel_shared_globals;
             smm_shared_globals = shared_globals_helper->smm_shared_globals;
             shm_init_done=1;
+            reinit=1;
             break;
-            
 		case SUCCESSFULLY_REATTACHED:
 			accel_shared_globals = (zend_accel_shared_globals *) ZSMMG(app_shared_globals);
 #if ZEND_EXTENSION_API_NO > PHP_5_3_X_API_NO
@@ -2631,9 +2633,11 @@ static int accel_startup(zend_extension *extension)
 		ini_entry->on_modify = accel_include_path_on_modify;
 	}
 
-	zend_shared_alloc_lock(TSRMLS_C);
-	zend_shared_alloc_save_state();
-	zend_shared_alloc_unlock(TSRMLS_C);
+    if(!reinit) {
+	    zend_shared_alloc_lock(TSRMLS_C);
+	    zend_shared_alloc_save_state();
+	    zend_shared_alloc_unlock(TSRMLS_C);
+    }
 
 	SHM_PROTECT();
 

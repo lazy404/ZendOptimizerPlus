@@ -304,6 +304,8 @@ typedef struct _zend_accel_shared_globals {
 
 extern zend_bool accel_startup_ok;
 
+extern int reinit;
+
 extern zend_accel_shared_globals *accel_shared_globals;
 #define ZCSG(element)   (accel_shared_globals->element)
 

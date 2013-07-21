@@ -210,6 +210,9 @@ int zend_shared_alloc_startup(size_t requested_size)
 		return res;
 	}
 
+    if (res == FILE_REATTACHED )
+        return res;
+
 	shared_segments_array_size = ZSMMG(shared_segments_count) * S_H(segment_type_size)();
 
 	/* move shared_segments and shared_free to shared memory */
