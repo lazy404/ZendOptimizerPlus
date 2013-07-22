@@ -372,7 +372,9 @@ int main() { return 0; }
 	shared_alloc_shm.c \
 	shared_alloc_mmap.c \
 	shared_alloc_posix.c \
-	Optimizer/zend_optimizer.c,
+	Optimizer/zend_optimizer.c \
+    lz4/lz4.c \
+    lz4/lz4hc.c,
 	shared,,,,yes)
 
   PHP_ADD_BUILD_DIR([$ext_builddir/Optimizer], 1)
