@@ -229,6 +229,7 @@ typedef struct _zend_accel_directives {
 
 	long           optimization_level;
 	long           max_file_size;
+    char           *mmap_prefix;
 #if ZEND_EXTENSION_API_NO > PHP_5_3_X_API_NO
 	long           interned_strings_buffer;
 #endif

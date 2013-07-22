@@ -40,6 +40,9 @@
 #define MAP_NOSYNC 0
 #endif
 
+/* MAXPATHLEN */
+#include <unistd.h>
+
 #if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
 # define MAP_ANONYMOUS MAP_ANON
 #endif
@@ -47,9 +50,11 @@
 static int create_segments(size_t requested_size, zend_shared_segment ***shared_segments_p, int *shared_segments_count, char **error_in)
 {
 	zend_shared_segment *shared_segment;
-    char file[] = "/apc/dupa";
     int fd=-1;
     int ret=ALLOC_FAILURE;
+    char file[MAXPATHLEN];
+
+    snprintf(file, MAXPATHLEN-1, "%s%d", ZCG(accel_directives).mmap_prefix, getuid());
     *shared_segments_count = 1;
     *shared_segments_p = (zend_shared_segment **) calloc(1, sizeof(zend_shared_segment) + sizeof(void *));
     if (!*shared_segments_p) {
