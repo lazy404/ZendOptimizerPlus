@@ -34,6 +34,8 @@
 # include <stdio.h>
 #endif
 
+#include <pthread.h>
+
 #ifdef HAVE_MPROTECT
 # include "sys/mman.h"
 #endif
@@ -63,41 +65,8 @@ static const zend_shared_memory_handler_entry handler_table[] = {
 #ifdef USE_MMAP
 	{ "mmap", &zend_alloc_mmap_handlers },
 #endif
-#ifdef USE_SHM
-	{ "shm", &zend_alloc_shm_handlers },
-#endif
-#ifdef USE_SHM_OPEN
-	{ "posix", &zend_alloc_posix_handlers },
-#endif
-#ifdef ZEND_WIN32
-	{ "win32", &zend_alloc_win32_handlers },
-#endif
 	{ NULL, NULL}
 };
-
-#ifndef ZEND_WIN32
-void zend_shared_alloc_create_lock(void)
-{
-	int val;
-
-#ifdef ZTS
-    zts_lock = tsrm_mutex_alloc();
-#endif
-
-	sprintf(lockfile_name, "%s/%sXXXXXX", TMP_DIR, SEM_FILENAME_PREFIX);
-	lock_file = mkstemp(lockfile_name);
-	fchmod(lock_file, 0666);
-
-	if (lock_file == -1) {
-		zend_accel_error(ACCEL_LOG_FATAL, "Unable to create lock file: %s (%d)", strerror(errno), errno);
-	}
-	val = fcntl(lock_file, F_GETFD, 0);
-	val |= FD_CLOEXEC;
-	fcntl(lock_file, F_SETFD, val);
-
-	unlink(lockfile_name);
-}
-#endif
 
 static void no_memory_bailout(size_t allocate_size, char *error)
 {
@@ -165,7 +134,7 @@ int zend_shared_alloc_startup(size_t requested_size)
 	smm_shared_globals = &tmp_shared_globals;
 	ZSMMG(shared_free) = requested_size; /* goes to tmp_shared_globals.shared_free */
 
-	zend_shared_alloc_create_lock();
+	//lazy: zend_shared_alloc_create_lock();
 
 	if (ZCG(accel_directives).memory_model && ZCG(accel_directives).memory_model[0]) {
 		char *model = ZCG(accel_directives).memory_model;
@@ -269,9 +238,6 @@ void zend_shared_alloc_shutdown(void)
 	efree(ZSMMG(shared_segments));
 	ZSMMG(shared_segments) = NULL;
 	g_shared_alloc_handler = NULL;
-#ifndef ZEND_WIN32
-	close(lock_file);
-#endif
 }
 
 static size_t zend_shared_alloc_get_largest_free_block(void)
@@ -364,15 +330,10 @@ void zend_shared_alloc_safe_unlock(TSRMLS_D)
 	}
 }
 
-#ifndef ZEND_WIN32
-/* name l_type l_whence l_start l_len */
-static FLOCK_STRUCTURE(mem_write_lock, F_WRLCK, SEEK_SET, 0, 1);
-static FLOCK_STRUCTURE(mem_write_unlock, F_UNLCK, SEEK_SET, 0, 1);
-#endif
 
-void zend_shared_alloc_lock(TSRMLS_D)
+void _zend_shared_alloc_lock(TSRMLS_D)
 {
-#ifndef ZEND_WIN32
+    int result;
 
 #ifdef ZTS
 	tsrm_mutex_lock(zts_lock);
@@ -385,18 +346,14 @@ void zend_shared_alloc_lock(TSRMLS_D)
 	}
 #endif
 
-	while (1) {
-		if (fcntl(lock_file, F_SETLKW, &mem_write_lock) == -1) {
-			if (errno == EINTR) {
-				continue;
-			}
-			zend_accel_error(ACCEL_LOG_ERROR, "Cannot create lock - %s (%d)", strerror(errno), errno);
-		}
-		break;
-	}
-#else
-	zend_shared_alloc_lock_win32();
-#endif
+    fprintf(stderr, "lock %s\n");
+    result =  pthread_mutex_lock(shared_globals_helper->shared_mutex);
+
+    if(result == EINVAL) {
+        fprintf(stderr, "unable to obtain pthread lock (EINVAL)");
+    } else if(result == EDEADLK) {
+        fprintf(stderr, "unable to obtain pthread lock (EDEADLK)");
+    }
 
 	ZCG(locked) = 1;
 
@@ -409,23 +366,18 @@ void zend_shared_alloc_lock(TSRMLS_D)
 	zend_hash_init(&xlat_table, 100, NULL, NULL, 1);
 }
 
-void zend_shared_alloc_unlock(TSRMLS_D)
+void _zend_shared_alloc_unlock(TSRMLS_D)
 {
 	/* Destroy translation table */
 	zend_hash_destroy(&xlat_table);
 
-	ZCG(locked) = 0;
+    fprintf(stderr, "unlock %s\n");
 
-#ifndef ZEND_WIN32
-	if (fcntl(lock_file, F_SETLK, &mem_write_unlock) == -1) {
-		zend_accel_error(ACCEL_LOG_ERROR, "Cannot remove lock - %s (%d)", strerror(errno), errno);
-	}
-#ifdef ZTS
-	tsrm_mutex_unlock(zts_lock);
-#endif
-#else
-	zend_shared_alloc_unlock_win32();
-#endif
+    if(pthread_mutex_unlock(shared_globals_helper->shared_mutex)) {
+        fprintf(stderr, "unable to unlock\n");
+    }
+
+	ZCG(locked) = 0;
 }
 
 void zend_shared_alloc_clear_xlat_table(void)
