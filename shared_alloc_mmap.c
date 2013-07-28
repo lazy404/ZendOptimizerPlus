@@ -29,6 +29,8 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
+#include <pthread.h>
+
 #define _BSD_SOURCE
 
 #include <sys/types.h>
@@ -53,6 +55,10 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
     int fd=-1;
     int ret=ALLOC_FAILURE;
     char file[MAXPATHLEN];
+    pthread_mutexattr_t* attr;
+    int result;
+
+    requested_size += sizeof(magick_shared_globals) + sizeof(pthread_mutex_t);
 
     snprintf(file, MAXPATHLEN-1, "%s%d", ZCG(accel_directives).mmap_prefix, getuid());
     *shared_segments_count = 1;
@@ -84,17 +90,55 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
         }
     }
     
-    shared_segment->p = (void *) mmap( MMAP_ADDR, requested_size+sizeof(magick_shared_globals), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_NOSYNC|MAP_FIXED, fd, 0);
+    shared_segment->p = (void *) mmap( MMAP_ADDR, requested_size, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_NOSYNC|MAP_FIXED, fd, 0);
 
     if (shared_segment->p == MAP_FAILED) {
             *error_in = "mmap";
             return ALLOC_FAILURE;
     }
 
-	shared_segment->pos = sizeof(magick_shared_globals);
+	shared_segment->pos = sizeof(magick_shared_globals) + sizeof(pthread_mutex_t);
 	shared_segment->size = requested_size;
     shared_globals_helper = shared_segment->p;
 
+    if(ret!=FILE_REATTACHED) {
+        zend_accel_error(ACCEL_LOG_DEBUG, "Lock created"); 
+        shared_globals_helper->shared_mutex = shared_segment->p + sizeof(magick_shared_globals);
+
+        attr = emalloc(sizeof(pthread_mutexattr_t));
+
+        result = pthread_mutexattr_init(attr);
+        if(result == ENOMEM) {
+            *error_in = "mmap2";
+            return ALLOC_FAILURE;
+        } else if(result == EINVAL) {
+            *error_in = "mmap3";
+            return ALLOC_FAILURE;
+        } else if(result == EFAULT) {
+            *error_in = "mmap4";
+            return ALLOC_FAILURE;
+        }
+
+        result = pthread_mutexattr_setpshared(attr, PTHREAD_PROCESS_SHARED);
+        if(result == EINVAL) {
+            *error_in = "mmap5";
+            return ALLOC_FAILURE;
+        } else if(result == EFAULT) {
+            *error_in = "mmap6";
+            return ALLOC_FAILURE;
+        } else if(result == ENOTSUP) {
+            *error_in = "mmap7";
+            return ALLOC_FAILURE;
+        }
+
+        if(pthread_mutex_init(shared_globals_helper->shared_mutex, attr)) {
+            efree(attr);
+            *error_in = "mmap8";
+            return ALLOC_FAILURE;
+        }
+
+        efree(attr);
+    }
 	return ret;
 }
 

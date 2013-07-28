@@ -25,6 +25,8 @@
 #include "zend.h"
 #include "ZendAccelerator.h"
 
+#include <pthread.h>
+
 #if defined(__APPLE__) && defined(__MACH__) /* darwin */
 # ifdef HAVE_SHM_MMAP_POSIX
 #  define USE_SHM_OPEN  1
@@ -73,6 +75,7 @@
 typedef struct _magick_shared_globals {
     void * accel_shared_globals;
     void * smm_shared_globals;
+    pthread_mutex_t * shared_mutex;
     int magick;
 } magick_shared_globals;
 
@@ -157,6 +160,7 @@ typedef union _align_test {
 void zend_shared_alloc_lock(TSRMLS_D);
 void zend_shared_alloc_unlock(TSRMLS_D); /* returns the allocated size during lock..unlock */
 void zend_shared_alloc_safe_unlock(TSRMLS_D);
+
 
 /* old/new mapping functions */
 void zend_shared_alloc_clear_xlat_table(void);
