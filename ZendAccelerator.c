@@ -2617,9 +2617,11 @@ static int accel_startup(zend_extension *extension)
 		ini_entry->on_modify = accel_include_path_on_modify;
 	}
 
-	fprintf(stderr, "lock %s-", __func__);zend_shared_alloc_lock(TSRMLS_C);
-	zend_shared_alloc_save_state();
-	fprintf(stderr, "unlock %s-", __func__);zend_shared_alloc_unlock(TSRMLS_C);
+    if(!shm_init_done) {
+	    fprintf(stderr, "lock %s-", __func__);zend_shared_alloc_lock(TSRMLS_C);
+	    zend_shared_alloc_save_state();
+	    fprintf(stderr, "unlock %s-", __func__);zend_shared_alloc_unlock(TSRMLS_C);
+    }
 
 	SHM_PROTECT();
 
