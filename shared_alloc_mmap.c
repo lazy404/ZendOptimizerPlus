@@ -56,6 +56,7 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
     int ret=ALLOC_FAILURE;
     char file[MAXPATHLEN];
     pthread_mutexattr_t* attr;
+    pthread_rwlockattr_t* rwattr;
     int result;
 
     requested_size += sizeof(magick_shared_globals) + sizeof(pthread_mutex_t);
@@ -104,6 +105,8 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
     if(ret!=FILE_REATTACHED) {
         zend_accel_error(ACCEL_LOG_DEBUG, "Lock created"); 
         shared_globals_helper->shared_mutex = shared_segment->p + requested_size +  sizeof(magick_shared_globals);
+        shared_globals_helper->restart_mutex = shared_globals_helper->shared_mutex + sizeof(pthread_mutex_t);
+        shared_globals_helper->mem_usage_rwlock = shared_globals_helper->restart_mutex + sizeof(pthread_mutex_t);
 
         attr = emalloc(sizeof(pthread_mutexattr_t));
 
@@ -131,13 +134,33 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
             return ALLOC_FAILURE;
         }
 
-/*        if(pthread_mutex_init(shared_globals_helper->shared_mutex, attr)) {
+
+        if(pthread_mutex_init(shared_globals_helper->shared_mutex, attr)) {
             efree(attr);
             *error_in = "mmap8";
             return ALLOC_FAILURE;
         }
-*/
+
+        if(pthread_mutex_init(shared_globals_helper->restart_mutex, attr)) {
+            efree(attr);
+            *error_in = "mmap9";
+            return ALLOC_FAILURE;
+        }
+
         efree(attr);
+
+        rwattr=emalloc(sizeof(pthread_rwlock_t));
+
+        result = pthread_rwlockattr_init(rwattr);
+        result = pthread_rwlockattr_setpshared(rwattr, PTHREAD_PROCESS_SHARED);
+        if(pthread_rwlock_init(shared_globals_helper->mem_usage_rwlock, rwattr)) { 
+            *error_in="mmap10";
+            efree(rwattr);
+            return ALLOC_FAILURE;
+        }
+
+        pthread_rwlockattr_destroy(rwattr);
+        efree(rwattr);
     }
 	return ret;
 }
