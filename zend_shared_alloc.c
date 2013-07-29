@@ -331,7 +331,7 @@ void zend_shared_alloc_safe_unlock(TSRMLS_D)
 }
 
 
-void _zend_shared_alloc_lock(TSRMLS_D)
+void zend_shared_alloc_lock(TSRMLS_D)
 {
     int result;
 
@@ -339,14 +339,6 @@ void _zend_shared_alloc_lock(TSRMLS_D)
 	tsrm_mutex_lock(zts_lock);
 #endif
 
-#if 0
-	/* this will happen once per process, and will un-globalize mem_write_lock */
-	if (mem_write_lock.l_pid == -1) {
-		mem_write_lock.l_pid = getpid();
-	}
-#endif
-
-    fprintf(stderr, "lock %s\n");
     result =  pthread_mutex_lock(shared_globals_helper->shared_mutex);
 
     if(result == EINVAL) {
@@ -366,12 +358,12 @@ void _zend_shared_alloc_lock(TSRMLS_D)
 	zend_hash_init(&xlat_table, 100, NULL, NULL, 1);
 }
 
-void _zend_shared_alloc_unlock(TSRMLS_D)
+void zend_shared_alloc_unlock(TSRMLS_D)
 {
 	/* Destroy translation table */
 	zend_hash_destroy(&xlat_table);
 
-    fprintf(stderr, "unlock %s\n");
+    fprintf(stderr, "\n");
 
     if(pthread_mutex_unlock(shared_globals_helper->shared_mutex)) {
         fprintf(stderr, "unable to unlock\n");
