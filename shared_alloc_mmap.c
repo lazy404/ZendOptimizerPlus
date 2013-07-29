@@ -72,7 +72,7 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
 
     fd = open(file , O_RDWR, S_IRUSR | S_IWUSR);
     if(fd != -1) {
-        if(ftruncate(fd, requested_size) < 0) {
+        if(ftruncate(fd, requested_size+4096) < 0) {
             close(fd);
             unlink(file);
             return ret;
@@ -81,7 +81,7 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
     }else{
         fd = open(file , O_RDWR|O_CREAT, S_IRUSR | S_IWUSR);
         if(fd != -1) {
-            if(ftruncate(fd, requested_size) < 0) {
+            if(ftruncate(fd, requested_size+4096) < 0) {
                 close(fd);
                 unlink(file);
                 return ret;
@@ -90,20 +90,20 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
         }
     }
     
-    shared_segment->p = (void *) mmap( MMAP_ADDR, requested_size, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_NOSYNC|MAP_FIXED, fd, 0);
+    shared_segment->p = (void *) mmap( MMAP_ADDR, requested_size+4096, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_NOSYNC|MAP_FIXED, fd, 0);
 
     if (shared_segment->p == MAP_FAILED) {
             *error_in = "mmap";
             return ALLOC_FAILURE;
     }
 
-	shared_segment->pos = sizeof(magick_shared_globals) + sizeof(pthread_mutex_t);
+	shared_segment->pos = 0;
 	shared_segment->size = requested_size;
-    shared_globals_helper = shared_segment->p;
+    shared_globals_helper = shared_segment->p+requested_size;
 
     if(ret!=FILE_REATTACHED) {
         zend_accel_error(ACCEL_LOG_DEBUG, "Lock created"); 
-        shared_globals_helper->shared_mutex = shared_segment->p + sizeof(magick_shared_globals);
+        shared_globals_helper->shared_mutex = shared_segment->p + requested_size +  sizeof(magick_shared_globals);
 
         attr = emalloc(sizeof(pthread_mutexattr_t));
 
@@ -131,12 +131,12 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
             return ALLOC_FAILURE;
         }
 
-        if(pthread_mutex_init(shared_globals_helper->shared_mutex, attr)) {
+/*        if(pthread_mutex_init(shared_globals_helper->shared_mutex, attr)) {
             efree(attr);
             *error_in = "mmap8";
             return ALLOC_FAILURE;
         }
-
+*/
         efree(attr);
     }
 	return ret;
