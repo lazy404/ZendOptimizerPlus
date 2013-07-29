@@ -472,98 +472,82 @@ static void accel_use_shm_interned_strings(TSRMLS_D)
 
 static inline void accel_restart_enter(TSRMLS_D)
 {
-#ifdef ZEND_WIN32
-	INCREMENT(restart_in);
-#else
-	static const FLOCK_STRUCTURE(restart_in_progress, F_WRLCK, SEEK_SET, 2, 1);
+    int result; 
 
-	if (fcntl(lock_file, F_SETLK, &restart_in_progress) == -1) {
-		zend_accel_error(ACCEL_LOG_DEBUG, "RestartC(+1):  %s (%d)", strerror(errno), errno);
-	}
-#endif
+    result =  pthread_mutex_lock(shared_globals_helper->restart_mutex);
+
+    if(result == EINVAL) {
+        fprintf(stderr, "unable to obtain pthread lock (EINVAL)");
+    } else if(result == EDEADLK) {
+        fprintf(stderr, "unable to obtain pthread lock (EDEADLK)");
+    }
 	ZCSG(restart_in_progress) = 1;
 }
 
 static inline void accel_restart_leave(TSRMLS_D)
 {
-#ifdef ZEND_WIN32
 	ZCSG(restart_in_progress) = 0;
-	DECREMENT(restart_in);
-#else
-	static const FLOCK_STRUCTURE(restart_finished, F_UNLCK, SEEK_SET, 2, 1);
 
-	ZCSG(restart_in_progress) = 0;
-	if (fcntl(lock_file, F_SETLK, &restart_finished) == -1) {
-		zend_accel_error(ACCEL_LOG_DEBUG, "RestartC(-1):  %s (%d)", strerror(errno), errno);
-	}
-#endif
+    if(pthread_mutex_unlock(shared_globals_helper->restart_mutex)) {
+        fprintf(stderr, "unable to unlock restart_mutex\n");
+    }
 }
 
 static inline int accel_restart_is_active(TSRMLS_D)
 {
-	if (ZCSG(restart_in_progress)) {
-#ifndef ZEND_WIN32
-		FLOCK_STRUCTURE(restart_check, F_WRLCK, SEEK_SET, 2, 1);
+    int result;
 
-		if (fcntl(lock_file, F_GETLK, &restart_check) == -1) {
-			zend_accel_error(ACCEL_LOG_DEBUG, "RestartC:  %s (%d)", strerror(errno), errno);
-			return FAILURE;
-		}
-		if (restart_check.l_type == F_UNLCK) {
-			ZCSG(restart_in_progress) = 0;
-			return 0;
-		} else {
-			return 1;
-		}
-#else
-		return LOCKVAL(restart_in) != 0;
-#endif
-	}
-	return 0;
+	if (ZCSG(restart_in_progress)) {
+        result =  pthread_mutex_trylock(shared_globals_helper->restart_mutex);
+        
+        switch(result) {
+            case EBUSY:
+			    return 1;
+            case 0:
+			    ZCSG(restart_in_progress) = 0;
+			    return 0;
+            case EINVAL:
+                fprintf(stderr, "unable to obtain pthread restart lock (EINVAL)");
+            default:
+                return FAILURE;
+                break;
+        }
+    }
+    return 0;
 }
 
 /* Creates a read lock for SHM access */
 static inline void accel_activate_add(TSRMLS_D)
 {
-#ifdef ZEND_WIN32
-	INCREMENT(mem_usage);
-#else
-	static const FLOCK_STRUCTURE(mem_usage_lock, F_RDLCK, SEEK_SET, 1, 1);
+    int result;
 
-	if (fcntl(lock_file, F_SETLK, &mem_usage_lock) == -1) {
-		zend_accel_error(ACCEL_LOG_DEBUG, "UpdateC(+1):  %s (%d)", strerror(errno), errno);
+    result = pthread_rwlock_rdlock(shared_globals_helper->mem_usage_rwlock);
+    if(result != 0) {
+		zend_accel_error(ACCEL_LOG_DEBUG, "UpdateC(+1): (%d)", result);
 	}
-#endif
+
 }
 
 /* Releases a lock for SHM access */
 static inline void accel_deactivate_sub(TSRMLS_D)
 {
-#ifdef ZEND_WIN32
-	if (ZCG(counted)) {
-		DECREMENT(mem_usage);
-		ZCG(counted) = 0;
-	}
-#else
-	static const FLOCK_STRUCTURE(mem_usage_unlock, F_UNLCK, SEEK_SET, 1, 1);
+    int result;
 
-	if (fcntl(lock_file, F_SETLK, &mem_usage_unlock) == -1) {
-		zend_accel_error(ACCEL_LOG_DEBUG, "UpdateC(-1):  %s (%d)", strerror(errno), errno);
+    result = pthread_rwlock_unlock(shared_globals_helper->mem_usage_rwlock);
+    if(result != 0) {
+		zend_accel_error(ACCEL_LOG_DEBUG, "UpdateC(-1): (%d)", result);
 	}
-#endif
+
 }
 
 static inline void accel_unlock_all(TSRMLS_D)
 {
-#ifdef ZEND_WIN32
-	accel_deactivate_sub(TSRMLS_C);
-#else
-	static const FLOCK_STRUCTURE(mem_usage_unlock_all, F_UNLCK, SEEK_SET, 0, 0);
+    int result;
 
-	if (fcntl(lock_file, F_SETLK, &mem_usage_unlock_all) == -1) {
-		zend_accel_error(ACCEL_LOG_DEBUG, "UnlockAll:  %s (%d)", strerror(errno), errno);
+    result = pthread_rwlock_unlock(shared_globals_helper->mem_usage_rwlock);
+    if(result != 0) {
+		zend_accel_error(ACCEL_LOG_DEBUG, "UpdateC(-1): (%d)", result);
 	}
-#endif
 }
 
 #ifndef ZEND_WIN32

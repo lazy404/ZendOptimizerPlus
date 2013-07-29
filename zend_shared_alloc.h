@@ -76,6 +76,8 @@ typedef struct _magick_shared_globals {
     void * accel_shared_globals;
     void * smm_shared_globals;
     pthread_mutex_t * shared_mutex;
+    pthread_mutex_t * restart_mutex;
+    pthread_rwlock_t * mem_usage_rwlock;
     int magick;
 } magick_shared_globals;
 
