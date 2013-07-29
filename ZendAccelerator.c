@@ -1183,7 +1183,6 @@ static zend_persistent_script *cache_script_in_shared_memory(zend_persistent_scr
 
 	/* Consistency check */
 	if ((char*)new_persistent_script->mem + new_persistent_script->size != (char*)ZCG(mem)) {
-		fprintf(stderr, "unlock9 %s-", __func__);zend_shared_alloc_unlock(TSRMLS_C);
 		zend_accel_error(
 			((char*)new_persistent_script->mem + new_persistent_script->size < (char*)ZCG(mem)) ? ACCEL_LOG_ERROR : ACCEL_LOG_WARNING,
 			"error: wrong size calculation: %s start=0x%08x, end=0x%08x, real=0x%08x\n",
@@ -1191,7 +1190,6 @@ static zend_persistent_script *cache_script_in_shared_memory(zend_persistent_scr
 			new_persistent_script->mem,
 			(char *)new_persistent_script->mem + new_persistent_script->size,
 			ZCG(mem));
-            zend_shared_alloc_unlock(TSRMLS_C);
 	}
 
 	new_persistent_script->dynamic_members.checksum = zend_accel_script_checksum(new_persistent_script);
