@@ -83,7 +83,8 @@ typedef struct _magick_shared_globals {
 
 extern magick_shared_globals *shared_globals_helper;
 
-#define MMAP_ADDR (void *) 0x00100000000
+//#define MMAP_ADDR (void *) 0x00100000000
+#define MMAP_ADDR (void *) 0x10000000000
 
 typedef struct _zend_shared_segment {
     size_t  size;
