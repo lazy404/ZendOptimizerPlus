@@ -1,6 +1,7 @@
 #! /bin/sh
-#
-# Created by configure
+
+make clean
+/chroot/php-5.4/bin/phpize
 CFLAGS='-g -O0' './configure' \
 '--with-php-config=/chroot/php-5.4/bin/php-config' \
 '--enable-opcache' \
