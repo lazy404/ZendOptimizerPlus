@@ -316,9 +316,14 @@ void *_zend_shared_memdup(void *source, size_t size, zend_bool free_source TSRML
 	retval = ZCG(mem);
 	ZCG(mem) = (void*)(((char*)ZCG(mem)) + ZEND_ALIGNED_SIZE(size));
 	memcpy(retval, source, size);
+
 	if (free_source) {
+#if ZEND_EXTENSION_API_NO > PHP_5_3_X_API_NO
+        fprintf(stderr, "\n%d free %p %p %p\n", IS_INTERNED(source), compiler_globals.interned_strings_start, source, compiler_globals.interned_strings_end);
+#endif
 		interned_efree((char*)source);
 	}
+
 	zend_shared_alloc_register_xlat_entry(source, retval);
 	return retval;
 }
@@ -340,6 +345,7 @@ void zend_shared_alloc_lock(TSRMLS_D)
 #endif
 
     result =  pthread_mutex_lock(shared_globals_helper->shared_mutex);
+    //result =  pthread_mutex_trylock(shared_globals_helper->shared_mutex);
 
     if(result == EINVAL) {
         fprintf(stderr, "unable to obtain pthread lock (EINVAL)");
