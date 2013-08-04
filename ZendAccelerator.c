@@ -2428,6 +2428,7 @@ static void zend_accel_init_shm(TSRMLS_D)
 
 	CG(interned_strings_start) = ZCSG(interned_strings_start);
 	CG(interned_strings_end) = ZCSG(interned_strings_end);
+
 	zend_new_interned_string = accel_new_interned_string_for_php;
 	zend_interned_strings_snapshot = accel_interned_strings_snapshot_for_php;
 	zend_interned_strings_restore = accel_interned_strings_restore_for_php;
@@ -2523,11 +2524,9 @@ static int accel_startup(zend_extension *extension)
             smm_shared_globals = shared_globals_helper->smm_shared_globals;
             shm_init_done=1;
             reinit=1;
-            break;
-		case SUCCESSFULLY_REATTACHED:
-			accel_shared_globals = (zend_accel_shared_globals *) ZSMMG(app_shared_globals);
 #if ZEND_EXTENSION_API_NO > PHP_5_3_X_API_NO
 			zend_shared_alloc_lock(TSRMLS_C);
+
 			orig_interned_strings_start = CG(interned_strings_start);
 			orig_interned_strings_end = CG(interned_strings_end);
 			orig_new_interned_string = zend_new_interned_string;
@@ -2543,6 +2542,7 @@ static int accel_startup(zend_extension *extension)
 # ifndef ZTS
 			accel_use_shm_interned_strings(TSRMLS_C);
 # endif
+
             zend_shared_alloc_unlock(TSRMLS_C);
 #endif
 
