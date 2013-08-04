@@ -134,8 +134,6 @@ int zend_shared_alloc_startup(size_t requested_size)
 	smm_shared_globals = &tmp_shared_globals;
 	ZSMMG(shared_free) = requested_size; /* goes to tmp_shared_globals.shared_free */
 
-	//lazy: zend_shared_alloc_create_lock();
-
 	if (ZCG(accel_directives).memory_model && ZCG(accel_directives).memory_model[0]) {
 		char *model = ZCG(accel_directives).memory_model;
 		/* "cgi" is really "shm"... */
@@ -318,9 +316,6 @@ void *_zend_shared_memdup(void *source, size_t size, zend_bool free_source TSRML
 	memcpy(retval, source, size);
 
 	if (free_source) {
-#if ZEND_EXTENSION_API_NO > PHP_5_3_X_API_NO
-        fprintf(stderr, "\n%d free %p %p %p\n", IS_INTERNED(source), compiler_globals.interned_strings_start, source, compiler_globals.interned_strings_end);
-#endif
 		interned_efree((char*)source);
 	}
 
@@ -345,12 +340,11 @@ void zend_shared_alloc_lock(TSRMLS_D)
 #endif
 
     result =  pthread_mutex_lock(shared_globals_helper->shared_mutex);
-    //result =  pthread_mutex_trylock(shared_globals_helper->shared_mutex);
 
     if(result == EINVAL) {
-        fprintf(stderr, "unable to obtain pthread lock (EINVAL)");
+        fprintf( stderr, "unable to obtain pthread lock (EINVAL)");
     } else if(result == EDEADLK) {
-        fprintf(stderr, "unable to obtain pthread lock (EDEADLK)");
+        fprintf( stderr, "unable to obtain pthread lock (EDEADLK)");
     }
 
 	ZCG(locked) = 1;
@@ -369,10 +363,8 @@ void zend_shared_alloc_unlock(TSRMLS_D)
 	/* Destroy translation table */
 	zend_hash_destroy(&xlat_table);
 
-    fprintf(stderr, "\n");
-
     if(pthread_mutex_unlock(shared_globals_helper->shared_mutex)) {
-        fprintf(stderr, "unable to unlock\n");
+        fprintf( stderr, "unable to unlock\n");
     }
 
 	ZCG(locked) = 0;

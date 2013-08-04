@@ -2656,7 +2656,7 @@ static void accel_free_ts_resources()
 
 void accel_shutdown(TSRMLS_D)
 {
-/*	zend_ini_entry *ini_entry;
+	zend_ini_entry *ini_entry;
 
 	zend_accel_blacklist_shutdown(&accel_blacklist);
 
@@ -2666,7 +2666,7 @@ void accel_shutdown(TSRMLS_D)
 	}
 
 	accel_free_ts_resources();
-	zend_shared_alloc_shutdown();
+	//zend_shared_alloc_shutdown();
 	zend_compile_file = accelerator_orig_compile_file;
 
 	if (zend_hash_find(EG(ini_directives), "include_path", sizeof("include_path"), (void **) &ini_entry) == SUCCESS) {
@@ -2685,7 +2685,7 @@ void accel_shutdown(TSRMLS_D)
 	zend_interned_strings_snapshot = orig_interned_strings_snapshot;
 	zend_interned_strings_restore = orig_interned_strings_restore;
 #endif
-*/
+
 }
 
 void zend_accel_schedule_restart(zend_accel_restart_reason reason TSRMLS_DC)
