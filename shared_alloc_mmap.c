@@ -150,9 +150,25 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
         efree(attr);
 
         rwattr=emalloc(sizeof(pthread_rwlock_t));
+        if(!rwattr) {
+            *error_in="mmap9.1";
+            return ALLOC_FAILURE;
+        }
 
         result = pthread_rwlockattr_init(rwattr);
+        if( result != 0 ) {
+            *error_in="mmap9.2";
+            efree(rwattr);
+            return ALLOC_FAILURE;
+        }
+
         result = pthread_rwlockattr_setpshared(rwattr, PTHREAD_PROCESS_SHARED);
+        if( result != 0 ) {
+            *error_in="mmap9.3";
+            efree(rwattr);
+            return ALLOC_FAILURE;
+        }
+
         if(pthread_rwlock_init(shared_globals_helper->mem_usage_rwlock, rwattr)) { 
             *error_in="mmap10";
             efree(rwattr);
