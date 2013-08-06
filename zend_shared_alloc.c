@@ -407,7 +407,7 @@ void zend_shared_alloc_save_state(void)
 
 void zend_shared_alloc_restore_state(void)
 {
-	int i, ret;
+	int i;
     size_t size;
     long int start, end;
 
@@ -421,7 +421,7 @@ void zend_shared_alloc_restore_state(void)
         size=end-start;
 
         if(size > 0)
-            ret=madvise((void *) start, size, MADV_REMOVE);
+            madvise((void *) start, size, MADV_REMOVE);
 
 	}
 
