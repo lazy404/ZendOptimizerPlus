@@ -89,6 +89,7 @@ extern magick_shared_globals *shared_globals_helper;
 typedef struct _zend_shared_segment {
     size_t  size;
     size_t  pos;  /* position for simple stack allocator */
+    char * filename;
     void   *p;
 } zend_shared_segment;
 
