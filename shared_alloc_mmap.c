@@ -44,10 +44,23 @@
 
 /* MAXPATHLEN */
 #include <unistd.h>
+#include <signal.h>
 
 #if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
 # define MAP_ANONYMOUS MAP_ANON
 #endif
+
+
+static void remove_cache_file(int signo, siginfo_t *siginfo, void *context) 
+{
+    if( ZSMMG(shared_segments_count) != 0) {
+        fprintf(stderr, "zop emergency cache delete %s\n\n", ZSMMG(shared_segments)[0]->filename);
+        unlink(ZSMMG(shared_segments)[0]->filename);
+        ZSMMG(shared_segments_count)=0;
+    }
+    exit(1);
+}
+
 
 static int create_segments(size_t requested_size, zend_shared_segment ***shared_segments_p, int *shared_segments_count, char **error_in)
 {
@@ -58,6 +71,7 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
     pthread_mutexattr_t* attr;
     pthread_rwlockattr_t* rwattr;
     int result;
+    struct sigaction sa = {{0}};
 
     requested_size += sizeof(magick_shared_globals) + sizeof(pthread_mutex_t);
 
@@ -93,8 +107,31 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
     
     shared_segment->p = (void *) mmap( MMAP_ADDR, requested_size+4096, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_NOSYNC|MAP_FIXED, fd, 0);
 
+    shared_segment->filename=calloc(strlen(file)+1,sizeof(char));
+    strcpy(shared_segment->filename, file);
+    
+    fprintf(stderr, shared_segment->filename);
+
     if (shared_segment->p == MAP_FAILED) {
             *error_in = "mmap";
+            return ALLOC_FAILURE;
+    }
+
+
+    sa.sa_sigaction=&remove_cache_file;
+    sa.sa_flags = SA_SIGINFO;
+
+    if (sigaction(SIGBUS, &sa, NULL) != 0) {
+            *error_in = "mmap.3";
+            return ALLOC_FAILURE;
+    }
+
+    if (sigaction(SIGSEGV, &sa, NULL) != 0) {
+            *error_in = "mmap.4";
+            return ALLOC_FAILURE;
+    }
+    if (sigaction(SIGFPE, &sa, NULL) != 0) {
+            *error_in = "mmap.5";
             return ALLOC_FAILURE;
     }
 
