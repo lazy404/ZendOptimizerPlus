@@ -115,6 +115,9 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
             return ALLOC_FAILURE;
     }
 
+    if (ret==ALLOC_SUCCESS)
+        madvise((void *) shared_segment->p, ((requested_size+4096)>>12)<<12, MADV_REMOVE);
+
     sa.sa_sigaction=&remove_cache_file;
     sa.sa_flags = SA_SIGINFO;
 
