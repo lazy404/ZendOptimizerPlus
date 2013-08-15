@@ -4,7 +4,7 @@ make clean
 
 /chroot/php-5.5/bin/phpize
 
-'./configure' \
+CFLAGS='-g -O0' './configure' \
 '--with-php-config=/chroot/php-5.5/bin/php-config' \
 '--enable-opcache' \
 "$@"
