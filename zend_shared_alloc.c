@@ -413,8 +413,8 @@ void zend_shared_alloc_restore_state(void)
 
 	for (i = 0; i < ZSMMG(shared_segments_count); i++) {
 		ZSMMG(shared_segments)[i]->pos = ZSMMG(shared_memory_state).positions[i];
-        start=ZSMMG(shared_segments)[i]->p + ZSMMG(shared_segments)[i]->pos;
-        end=ZSMMG(shared_segments)[i]->p + ZSMMG(shared_segments)[i]->size;
+        start=(long int) ZSMMG(shared_segments)[i]->p + ZSMMG(shared_segments)[i]->pos;
+        end=(long int) ZSMMG(shared_segments)[i]->p + ZSMMG(shared_segments)[i]->size;
 
         start=(1 + (((start)-1)>>12)) << 12;
         end=(end>>12) << 12;
