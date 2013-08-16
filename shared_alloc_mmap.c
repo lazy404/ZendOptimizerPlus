@@ -31,8 +31,6 @@
 
 #include <pthread.h>
 
-#define _BSD_SOURCE
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -143,7 +141,7 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
         zend_accel_error(ACCEL_LOG_DEBUG, "Lock created"); 
         shared_globals_helper->shared_mutex = shared_segment->p + requested_size +  sizeof(magick_shared_globals);
         shared_globals_helper->restart_mutex = shared_globals_helper->shared_mutex + sizeof(pthread_mutex_t);
-        shared_globals_helper->mem_usage_rwlock = shared_globals_helper->restart_mutex + sizeof(pthread_mutex_t);
+        shared_globals_helper->mem_usage_rwlock = (pthread_rwlock_t *) shared_globals_helper->restart_mutex + sizeof(pthread_mutex_t);
 
         attr = emalloc(sizeof(pthread_mutexattr_t));
 
