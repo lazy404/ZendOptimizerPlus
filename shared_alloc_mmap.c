@@ -70,6 +70,7 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
     pthread_rwlockattr_t* rwattr;
     int result;
     struct sigaction sa = {{0}};
+    struct stat statb;
 
     requested_size += sizeof(magick_shared_globals) + sizeof(pthread_mutex_t);
 
@@ -77,20 +78,28 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
     *shared_segments_count = 1;
     *shared_segments_p = (zend_shared_segment **) calloc(1, sizeof(zend_shared_segment) + sizeof(void *));
     if (!*shared_segments_p) {
-            *error_in = "calloc";
             return ALLOC_FAILURE;
     }
     shared_segment = (zend_shared_segment *)((char *)(*shared_segments_p) + sizeof(void *));
     (*shared_segments_p)[0] = shared_segment;
 
     fd = open(file , O_RDWR, S_IRUSR | S_IWUSR);
+
+    file_opened:
+
     if(fd != -1) {
-        if(ftruncate(fd, requested_size+4096) < 0) {
-            close(fd);
-            unlink(file);
+        if(fstat(fd, &statb) < 0) {
+            *error_in = "fstat";
             return ret;
          }
-     ret=FILE_REATTACHED;
+
+        if(statb.st_size != (requested_size + 4096) ) {
+            close(fd);
+            unlink(file);
+            goto file_opened;
+        }
+
+        ret=FILE_REATTACHED;
     }else{
         fd = open(file , O_RDWR|O_CREAT, S_IRUSR | S_IWUSR);
         if(fd != -1) {
@@ -136,12 +145,25 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
 	shared_segment->pos = 0;
 	shared_segment->size = requested_size;
     shared_globals_helper = shared_segment->p+requested_size;
-
-    if(ret!=FILE_REATTACHED) {
-        zend_accel_error(ACCEL_LOG_DEBUG, "Lock created"); 
+    if(ret == FILE_REATTACHED ) {
+        if(shared_globals_helper->magick != MAGICK_NUMBER) {
+            zend_accel_error(ACCEL_LOG_DEBUG, "wrong magick number, ejecting %s", shared_segment->filename); 
+            munmap(shared_segment->p, shared_segment->size);
+            close(fd);
+            unlink(shared_segment->filename);
+            free(shared_segment->filename);
+            free(*shared_segments_p);
+            *shared_segments_p=NULL;
+            *error_in = "magic number";
+            return ALLOC_FAILURE;
+        }
+    }else
+        if(ret!=FILE_REATTACHED) {
         shared_globals_helper->shared_mutex = shared_segment->p + requested_size +  sizeof(magick_shared_globals);
         shared_globals_helper->restart_mutex = shared_globals_helper->shared_mutex + sizeof(pthread_mutex_t);
         shared_globals_helper->mem_usage_rwlock = (pthread_rwlock_t *) shared_globals_helper->restart_mutex + sizeof(pthread_mutex_t);
+
+        shared_globals_helper->magick = MAGICK_NUMBER;
 
         attr = emalloc(sizeof(pthread_mutexattr_t));
 
@@ -213,7 +235,7 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
         pthread_rwlockattr_destroy(rwattr);
         efree(rwattr);
     }
-	return ret;
+    return ret;
 }
 
 static int detach_segment(zend_shared_segment *shared_segment)

@@ -72,6 +72,8 @@
 #define ALLOC_FAIL_MAPPING      8
 #define FILE_REATTACHED      16
 
+#define MAGICK_NUMBER 0xfea766
+
 typedef struct _magick_shared_globals {
     void * accel_shared_globals;
     void * smm_shared_globals;
